@@ -1,0 +1,119 @@
+# games.toml
+# Captured multi-player games in normal form and sequential form.
+
+[normal_games.prisoner_dilemma]
+name = "Prisoner's Dilemma"
+players = ["P1", "P2"]
+
+[normal_games.prisoner_dilemma.strategies]
+P1 = ["Cooperate", "Defect"]
+P2 = ["Cooperate", "Defect"]
+
+[[normal_games.prisoner_dilemma.payoffs]]
+profile = ["Cooperate", "Cooperate"]
+payoff = [-1, -1]
+
+[[normal_games.prisoner_dilemma.payoffs]]
+profile = ["Cooperate", "Defect"]
+payoff = [-3, 0]
+
+[[normal_games.prisoner_dilemma.payoffs]]
+profile = ["Defect", "Cooperate"]
+payoff = [0, -3]
+
+[[normal_games.prisoner_dilemma.payoffs]]
+profile = ["Defect", "Defect"]
+payoff = [-2, -2]
+
+
+[normal_games.battle_of_the_sexes]
+name = "Battle of the Sexes"
+players = ["P1", "P2"]
+
+[normal_games.battle_of_the_sexes.strategies]
+P1 = ["Opera", "Football"]
+P2 = ["Opera", "Football"]
+
+[[normal_games.battle_of_the_sexes.payoffs]]
+profile = ["Opera", "Opera"]
+payoff = [3, 2]
+
+[[normal_games.battle_of_the_sexes.payoffs]]
+profile = ["Opera", "Football"]
+payoff = [0, 0]
+
+[[normal_games.battle_of_the_sexes.payoffs]]
+profile = ["Football", "Opera"]
+payoff = [0, 0]
+
+[[normal_games.battle_of_the_sexes.payoffs]]
+profile = ["Football", "Football"]
+payoff = [2, 3]
+
+
+[sequential_games.simple_tree]
+name = "Simple Sequential Game (2-Player)"
+player = "P1"
+actions = ["a1", "a2"]
+
+[sequential_games.simple_tree.children.a1]
+player = "P2"
+actions = ["b1", "b2"]
+
+[sequential_games.simple_tree.children.a1.children.b1]
+player = "Terminal"
+actions = []
+payoff = [3, 2]
+
+[sequential_games.simple_tree.children.a1.children.b2]
+player = "Terminal"
+actions = []
+payoff = [0, 1]
+
+[sequential_games.simple_tree.children.a2]
+player = "P2"
+actions = ["b1", "b2"]
+
+[sequential_games.simple_tree.children.a2.children.b1]
+player = "Terminal"
+actions = []
+payoff = [1, 0]
+
+[sequential_games.simple_tree.children.a2.children.b2]
+player = "Terminal"
+actions = []
+payoff = [2, 3]
+
+
+[sequential_games.three_player_game]
+name = "3-Player Sequential Game"
+player = "P1"
+actions = ["a1", "a2"]
+
+[sequential_games.three_player_game.children.a1]
+player = "P2"
+actions = ["b1", "b2"]
+
+[sequential_games.three_player_game.children.a1.children.b1]
+player = "P3"
+actions = ["c1", "c2"]
+
+[sequential_games.three_player_game.children.a1.children.b1.children.c1]
+player = "Terminal"
+actions = []
+payoff = [1, 2, 3]
+
+[sequential_games.three_player_game.children.a1.children.b1.children.c2]
+player = "Terminal"
+actions = []
+payoff = [3, 2, 1]
+
+[sequential_games.three_player_game.children.a1.children.b2]
+player = "Terminal"
+actions = []
+payoff = [2, 2, 2]
+
+[sequential_games.three_player_game.children.a2]
+player = "Terminal"
+actions = []
+payoff = [0, 0, 0]

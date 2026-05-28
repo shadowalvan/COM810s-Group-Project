@@ -5,7 +5,10 @@ using Markdown
 using InteractiveUtils
 
 # ╔═╡ ccaf1620-1eaf-4742-ad20-fef6993629b9
-using LinearAlgebra
+begin
+	using LinearAlgebra
+	using TOML
+end
 
 # ╔═╡ 02b8b7f0-5554-11f1-0aa2-b74869b510cd
 """
@@ -81,17 +84,20 @@ payoffs = Dict(
 
 # ╔═╡ 6cbf7e1a-8680-459b-98cc-8c8de1913a88
 # Pure strategy Nash Equilibrium algorithm
-function pure_nash(payoffs, strategies)
+function pure_nash(payoffs, strategies, players=["P1","P2"])
     equilibria = []
-    players = ["P1","P2"]  # enforce consistent order
     for (profile, payoff) in payoffs
         stable = true
         for (i, player) in enumerate(players)
             for alt in strategies[player]
                 alt_profile = ntuple(j -> j == i ? alt : profile[j], length(profile))
-                if payoffs[alt_profile][i] > payoff[i]
+                if haskey(payoffs, alt_profile) && payoffs[alt_profile][i] > payoff[i]
                     stable = false
+                    break
                 end
+            end
+            if !stable
+                break
             end
         end
         if stable
@@ -109,34 +115,32 @@ println(pure_nash(payoffs, strategies))
 # Mixed Strategy Nash Equilibrium MSNE
 
 # ╔═╡ 8cd72769-39ec-4cef-9d36-a6771225740f
-function mixed_nash(payoffs)
-    # Assume 2 players, 2 strategies each
-    # Payoffs: Dict(("a1","b1") => (u1,u2), ...)
-    # Extract payoffs
-    u11, v11 = payoffs[("a1","b1")]
-    u12, v12 = payoffs[("a1","b2")]
-    u21, v21 = payoffs[("a2","b1")]
-    u22, v22 = payoffs[("a2","b2")]
+function mixed_nash(payoffs, strategies=Dict("P1" => ["a1", "a2"], "P2" => ["b1", "b2"]), players=["P1","P2"])
+    # Assume 2 players, 2 strategies each but names are generic
+    p1, p2 = players[1], players[2]
+    a1, a2 = strategies[p1][1], strategies[p1][2]
+    b1, b2 = strategies[p2][1], strategies[p2][2]
+    
+    u11, v11 = payoffs[(a1, b1)]
+    u12, v12 = payoffs[(a1, b2)]
+    u21, v21 = payoffs[(a2, b1)]
+    u22, v22 = payoffs[(a2, b2)]
 
     # Player 1 mixing probability p (prob of a1)
     # Player 2 mixing probability q (prob of b1)
 
-    # Player 1 indifferent: expected payoff of a1 = expected payoff of a2
-    # u11*q + u12*(1-q) = u21*q + u22*(1-q)
-    q = (u22 - u12) / ((u11 - u21) + (u22 - u12))
+    # Indifference equations
+    denom_q = (u11 - u21) + (u22 - u12)
+    q = denom_q == 0 ? 0.5 : (u22 - u12) / denom_q
 
-    # Player 2 indifferent: expected payoff of b1 = expected payoff of b2
-    # v11*p + v21*(1-p) = v12*p + v22*(1-p)
-    p = (v22 - v21) / ((v11 - v12) + (v22 - v21))
+    denom_p = (v11 - v12) + (v22 - v21)
+    p = denom_p == 0 ? 0.5 : (v22 - v21) / denom_p
 
-    return (p,q)
+    return (p, q)
 end
 
 # ╔═╡ 0f4a20ca-9345-4554-a8ba-d0b193fce3c2
 println(mixed_nash(payoffs))
-
-# ╔═╡ 06d386c3-662b-4880-9e3c-6efdb84021da
-
 
 # ╔═╡ 17c88aa6-1e9c-429d-bf89-35bbc1db2e2d
 # Problem 2: Sequential Games
@@ -151,7 +155,7 @@ struct Node
     player::String
     actions::Vector{String}
     children::Dict{String, Node}
-    payoff::Union{Nothing, Tuple{Int,Int}}
+    payoff::Union{Nothing, Tuple}
 end
 
 # Example: Player 1 chooses a1 or a2, then Player 2 chooses b1 or b2
@@ -178,28 +182,146 @@ p2_after_a2 = Node("P2", ["b1","b2"], Dict("b1"=>leaf3,"b2"=>leaf4), nothing)
 root = Node("P1", ["a1","a2"], Dict("a1"=>p2_after_a1,"a2"=>p2_after_a2), nothing)
 
 # ╔═╡ ffcee330-0de5-417b-b8c9-8e24ccf64b45
-# Backward induction algorithm
-function backward_induction(node::Node)
-    if node.payoff !== nothing
-        return node.payoff
-    end
-    best_action, best_payoff = nothing, (-Inf,-Inf)
-    for action in node.actions
-        payoff = backward_induction(node.children[action])
-        if payoff[node.player == "P1" ? 1 : 2] > best_payoff[node.player == "P1" ? 1 : 2]
-            best_action, best_payoff = action, payoff
+begin
+    # Helper to map a player's name to their index in the payoff tuple (e.g. "P1" or "Player 1" -> 1)
+    function get_player_index(player_name::String)
+        m = match(r"\d+", player_name)
+        if m !== nothing
+            return parse(Int, m.match)
+        end
+        if player_name == "P1" || lowercase(player_name) == "player1"
+            return 1
+        elseif player_name == "P2" || lowercase(player_name) == "player2"
+            return 2
+        else
+            return 1
         end
     end
-    return best_payoff
+
+    # Backward induction algorithm
+    function backward_induction(node::Node)
+        if node.payoff !== nothing
+            return node.payoff
+        end
+        best_action, best_payoff = nothing, nothing
+        player_idx = get_player_index(node.player)
+        for action in node.actions
+            payoff = backward_induction(node.children[action])
+            if best_payoff === nothing || payoff[player_idx] > best_payoff[player_idx]
+                best_action, best_payoff = action, payoff
+            end
+        end
+        return best_payoff
+    end
 end
 
 # ╔═╡ 1a3b2c36-bb44-4e42-b209-f44e87d5ecfb
 println(backward_induction(root))
 
+# ╔═╡ 06d386c3-662b-4880-9e3c-6efdb84021da
+begin
+    function parse_normal_game(game_data)
+        players = convert(Vector{String}, game_data["players"])
+        strategies = Dict{String, Vector{String}}()
+        for (player, strats) in game_data["strategies"]
+            strategies[player] = convert(Vector{String}, strats)
+        end
+        payoffs = Dict{Tuple, Tuple}()
+        for entry in game_data["payoffs"]
+            profile = Tuple(convert(Vector{String}, entry["profile"]))
+            payoff = Tuple(entry["payoff"])
+            payoffs[profile] = payoff
+        end
+        return players, strategies, payoffs
+    end
+
+    function dict_to_node(d::Dict{String, Any})
+        player = d["player"]
+        actions = haskey(d, "actions") ? convert(Vector{String}, d["actions"]) : String[]
+        children = Dict{String, Node}()
+        if haskey(d, "children")
+            for (action, child_dict) in d["children"]
+                children[action] = dict_to_node(convert(Dict{String, Any}, child_dict))
+            end
+        end
+        payoff = haskey(d, "payoff") && !isnothing(d["payoff"]) ? Tuple(d["payoff"]) : nothing
+        return Node(player, actions, children, payoff)
+    end
+
+    function run_all_games(filepath="games.toml")
+        if !isfile(filepath)
+            return Markdown.parse("### Error\nFile `$filepath` not found. Please ensure it is created.")
+        end
+        
+        data = TOML.parsefile(filepath)
+        output = "# TOML Game Solver Results\n\n"
+        
+        if haskey(data, "normal_games")
+            output *= "## Problem 1: Normal Form Games\n\n"
+            for (game_id, game_data) in data["normal_games"]
+                name = get(game_data, "name", game_id)
+                players, strategies, payoffs = parse_normal_game(game_data)
+                
+                output *= "### Game: $name\n"
+                output *= "- **Players**: $(join(players, ", "))\n"
+                output *= "- **Strategies**:\n"
+                for p in players
+                    output *= "  - $p: $(join(strategies[p], ", "))\n"
+                end
+                
+                pure_eqs = pure_nash(payoffs, strategies, players)
+                output *= "- **Pure Strategy Nash Equilibria**:\n"
+                if isempty(pure_eqs)
+                    output *= "  - None\n"
+                else
+                    for (profile, payoff) in pure_eqs
+                        output *= "  - Profile: $profile => Payoff: $payoff\n"
+                    end
+                end
+                
+                is_2x2 = length(players) == 2 && all(length(strategies[p]) == 2 for p in players)
+                if is_2x2
+                    try
+                        p, q = mixed_nash(payoffs, strategies, players)
+                        output *= "- **Mixed Strategy Nash Equilibrium (Mixing Probabilities)**:\n"
+                        output *= "  - Probability of $(strategies[players[1]][1]) (for $(players[1])): $(round(p, digits=4))\n"
+                        output *= "  - Probability of $(strategies[players[2]][1]) (for $(players[2])): $(round(q, digits=4))\n"
+                    catch e
+                        output *= "- **Mixed Strategy Nash Equilibrium**: Calculation error: $e\n"
+                    end
+                end
+                output *= "\n"
+            end
+        end
+        
+        if haskey(data, "sequential_games")
+            output *= "## Problem 2: Sequential Games\n\n"
+            for (game_id, game_data) in data["sequential_games"]
+                name = get(game_data, "name", game_id)
+                root_node = dict_to_node(game_data)
+                
+                output *= "### Game: $name\n"
+                try
+                    spne_payoff = backward_induction(root_node)
+                    output *= "- **Subgame Perfect Nash Equilibrium Payoff**: $spne_payoff\n"
+                catch e
+                    output *= "- **Error running backward induction**: $e\n"
+                end
+                output *= "\n"
+            end
+        end
+        
+        return Markdown.parse(output)
+    end
+
+    run_all_games("games.toml")
+end
+
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
 [deps]
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
+TOML = "fa267f1f-6049-4f14-aa54-33bafae1ed76"
 """
 
 # ╔═╡ 00000000-0000-0000-0000-000000000002
@@ -208,7 +330,7 @@ PLUTO_MANIFEST_TOML_CONTENTS = """
 
 julia_version = "1.12.6"
 manifest_format = "2.0"
-project_hash = "f352ceee806168c8ae38887a01d7bae6ca62470b"
+project_hash = "dff273d8dcf8c92fa5415ce88e656d9e01c11e8b"
 
 [[deps.Artifacts]]
 uuid = "56f22d72-fd6d-98f1-02f0-08ddc0907c33"
@@ -218,6 +340,11 @@ version = "1.11.0"
 deps = ["Artifacts", "Libdl"]
 uuid = "e66e0078-7015-5450-92f7-15fbd957f2ae"
 version = "1.3.0+1"
+
+[[deps.Dates]]
+deps = ["Printf"]
+uuid = "ade2ca70-3891-5945-98fb-dc099432e06a"
+version = "1.11.0"
 
 [[deps.Libdl]]
 uuid = "8f399da3-3557-5675-b5ff-fb832c97cbdb"
@@ -232,6 +359,20 @@ version = "1.12.0"
 deps = ["Artifacts", "CompilerSupportLibraries_jll", "Libdl"]
 uuid = "4536629a-c528-5b80-bd46-f80d51c5b363"
 version = "0.3.29+0"
+
+[[deps.Printf]]
+deps = ["Unicode"]
+uuid = "de0858da-6303-5e67-8744-51eddeeeb8d7"
+version = "1.11.0"
+
+[[deps.TOML]]
+deps = ["Dates"]
+uuid = "fa267f1f-6049-4f14-aa54-33bafae1ed76"
+version = "1.0.3"
+
+[[deps.Unicode]]
+uuid = "4ec0a83e-493e-50e2-b9ac-8f72acf5a8f5"
+version = "1.11.0"
 
 [[deps.libblastrampoline_jll]]
 deps = ["Artifacts", "Libdl"]
@@ -251,7 +392,6 @@ version = "5.15.0+0"
 # ╠═ccaf1620-1eaf-4742-ad20-fef6993629b9
 # ╠═8cd72769-39ec-4cef-9d36-a6771225740f
 # ╠═0f4a20ca-9345-4554-a8ba-d0b193fce3c2
-# ╠═06d386c3-662b-4880-9e3c-6efdb84021da
 # ╠═17c88aa6-1e9c-429d-bf89-35bbc1db2e2d
 # ╠═126aee4c-6871-45b1-a5fe-05775a253c3c
 # ╠═4340ef32-53a4-47f9-8cca-dcce9498f8ee
@@ -263,5 +403,6 @@ version = "5.15.0+0"
 # ╠═ac369ea6-46de-47a4-9b77-7668aa7e0963
 # ╠═ffcee330-0de5-417b-b8c9-8e24ccf64b45
 # ╠═1a3b2c36-bb44-4e42-b209-f44e87d5ecfb
+# ╠═06d386c3-662b-4880-9e3c-6efdb84021da
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
