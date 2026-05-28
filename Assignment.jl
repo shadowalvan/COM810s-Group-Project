@@ -61,27 +61,26 @@ Note that your game definition should allow for games with imperfect information
 """
 
 # ╔═╡ 347bb298-5c8b-4d42-98d6-52de7ca26f35
-#Problem 1: Normal Form Games
+# Problem 1: Normal Form Games
 
 # ╔═╡ 3d0f4a54-3670-4f95-a5e6-3314f3fa31c4
-#players & Strategies
+# Players & Strategies
 players = ["P1","P2"]
 
 # ╔═╡ 4d4b5cbf-ea3d-4580-83d5-f0ecdc6579f0
 strategies = Dict("P1" => ["a1", "a2"], "P2" => ["b1", "b2"])
 
-#payoffs
-
 # ╔═╡ 41eb6dbf-f9e2-4f2f-9646-0eb17c755b05
+# Payoffs
 payoffs = Dict(
 	("a1","b1") => (3,2),
 	("a1","b2") => (0,1),
 	("a2","b1") => (1,0),
 	("a2","b2") => (2,3)
 )
-#checking pure strategy Nash Equilibrium
 
 # ╔═╡ 6cbf7e1a-8680-459b-98cc-8c8de1913a88
+# Pure strategy Nash Equilibrium algorithm
 function pure_nash(payoffs, strategies)
     equilibria = []
     players = ["P1","P2"]  # enforce consistent order
@@ -107,9 +106,7 @@ end
 println(pure_nash(payoffs, strategies))
 
 # ╔═╡ 222d3f49-baa7-4b8e-8271-b9f15117762e
-md"""
-Mixed Strategy Nash Equilibrium MSNE
-"""
+# Mixed Strategy Nash Equilibrium MSNE
 
 # ╔═╡ 8cd72769-39ec-4cef-9d36-a6771225740f
 function mixed_nash(payoffs)
@@ -142,14 +139,14 @@ println(mixed_nash(payoffs))
 
 
 # ╔═╡ 17c88aa6-1e9c-429d-bf89-35bbc1db2e2d
-#Problem 2: Sequential Games
+# Problem 2: Sequential Games
 """
 Sequential Form Games tree
 Solve SPNE using backward induction
 """
 
 # ╔═╡ 126aee4c-6871-45b1-a5fe-05775a253c3c
-# Define a simple game tree
+# Define a simple game tree node
 struct Node
     player::String
     actions::Vector{String}
@@ -180,9 +177,8 @@ p2_after_a2 = Node("P2", ["b1","b2"], Dict("b1"=>leaf3,"b2"=>leaf4), nothing)
 # ╔═╡ ac369ea6-46de-47a4-9b77-7668aa7e0963
 root = Node("P1", ["a1","a2"], Dict("a1"=>p2_after_a1,"a2"=>p2_after_a2), nothing)
 
-# Backward induction function
-
 # ╔═╡ ffcee330-0de5-417b-b8c9-8e24ccf64b45
+# Backward induction algorithm
 function backward_induction(node::Node)
     if node.payoff !== nothing
         return node.payoff
